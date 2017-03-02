@@ -1,4 +1,5 @@
 #include "board.hpp"
+using namespace std;
 
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
@@ -177,4 +178,27 @@ void Board::setBoard(char data[]) {
             taken.set(i);
         }
     }
+}
+
+/**
+ * @brief Finds all possible moves for a given side.
+ * 
+ * @param[in] side is the side whose turn it is
+ * @return std::vector of possible moves for a given side.
+ */
+vector<Move*> Board::possibleMoves(Side side)
+{
+	vector<Move*> moves;
+	for (int x = 0; x < 8; x++)
+	{
+		for (int y = 0; y < 8; y++)
+		{
+			Move *m = new Move(x, y);
+			if (this->checkMove(m, side))
+			{
+				moves.push_back(m);
+			}
+		}
+	}
+	return moves;
 }

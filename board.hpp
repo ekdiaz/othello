@@ -3,6 +3,7 @@
 
 #include <bitset>
 #include "common.hpp"
+#include <vector>
 using namespace std;
 
 class Board {
@@ -30,6 +31,7 @@ public:
     int countWhite();
 
     void setBoard(char data[]);
+    vector<Move*> possibleMoves(Side side);
 };
 
 #endif
