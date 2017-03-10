@@ -11,6 +11,9 @@ Player::Player(Side side) {
     testingMinimax = false;
     this->side = side;
     this->board = Board();
+    // alpha and beta values for alpha-beta pruning
+    this->a = numeric_limits<int>::min();
+    this->b = numeric_limits<int>::max();
 }
 
 /*
@@ -47,45 +50,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     board.doMove(opponentsMove, getOpponent());
     if (board.hasMoves(side))
     {
-    	//Working AI
-    // 	for (int x = 0; x < 8; x++)
-    // 	{
-    // 		for (int y = 0; y < 8; y++)
-    // 		{
-    // 			Move *m = new Move(x, y);
-				// if (board.checkMove(m, side))
-				// {
-				// 	board.doMove(m, side);
-				// 	return m;
-				// }
-				// delete m;
-    // 		}
-    // 	}
-    	//AI that beats SimplePlayer
-    	// Move *best = nullptr;
-    	// int bestScore = -100000000;
-    	// for (int x = 0; x < 8; x++)
-    	// {
-    	// 	for (int y = 0; y < 8; y++)
-    	// 	{
-    	// 		Move *m = new Move(x, y);
-    	// 		if (board.checkMove(m, side))
-    	// 		{
-    	// 			int score = getMoveScore(this->board, m);
-    	// 			if (score > bestScore)
-    	// 			{
-    	// 				best = m;
-    	// 				bestScore = score;
-    	// 			}
-    	// 		}
-    	// 	}
-    	// }
-    	// board.doMove(best, side);
-    	// return best;
-
-    	//AI that implements 2-ply depth minimax
     	Board *bcopy = this->board.copy();
-    	Move *m = minimaxMove(bcopy, 2, 0);
+    	//Move *m = minimaxMove(bcopy, 4, 0);
+    	Move *m = alpha_beta(bcopy, 5, 0, numeric_limits<int>::min(), numeric_limits<int>::max());
     	board.doMove(m, side);
     	delete bcopy;
     	return m;
@@ -99,11 +66,29 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
  * 
  * @returns int score of move.
  */
-int Player::getMoveScore(Board b, Move *m)
+int Player::getMoveScore(Board b, Move *m, Side s)
 {
+	int beforeScore = b.count(side) - b.count(getOpponent());
 	Board *bcopy = b.copy();
-	bcopy->doMove(m, side);
-	int score = bcopy->count(side) - bcopy->count(getOpponent());
+	bcopy->doMove(m, s);
+	int score1 = bcopy->count(side) - bcopy->count(getOpponent());
+	//a given move should improve over the board score from before
+	int score = score1 - beforeScore;
+
+	//if a move results in there being no further moves and we're winning, that move should be taken
+	if ((!bcopy->hasMoves(side)) && (!bcopy->hasMoves(getOpponent())))
+	{
+		if (score1 >= 0)
+		{
+			return score * 10;
+		}
+		//if we're not winning, then that move should not be taken!
+		else
+		{
+			return score * -10;
+		}
+	}
+
 	if (m == nullptr)
 	{
 		return score;
@@ -113,7 +98,7 @@ int Player::getMoveScore(Board b, Move *m)
 	//if one of the corners, more valuable
 	if (((x == 0) && (y == 0)) || ((x == 7) && (y == 0)) || ((x == 0) && (y == 7)) || ((x == 7) && (y == 7)))
 	{
-		score *= 3;
+		score *= 10;
 	}
 
 	//if adjacent to one of the corners, less valuable
@@ -137,11 +122,14 @@ int Player::getMoveScore(Board b, Move *m)
 	{
 		score *= -3;
 	}
-
+	//else if along one of the edges but not granting access to one of the corners
+	else if ((x == 0) || (x == 7) || (y == 0) || (y == 7))
+	{
+		score *= 5;
+	}
 	delete bcopy;
 	return score;
 }
-
 
 
 /**
@@ -181,8 +169,20 @@ Move *Player::minimaxMove(Board *b, int d, int current)
 		{
 			bcpy->doMove(moves[i], getOpponent());
 		}
+		//Find the best of the possible reply moves that can be made on bcpy
 		Move *m = minimaxMove(bcpy, d, current + 1);
-		scores.push_back(getMoveScore(*bcpy, m));
+		//if the reply move was the opponent's side
+		if (current % 2 == 0)
+		{
+			scores.push_back(getMoveScore(*bcpy, m, getOpponent()));
+		}
+		//if the reply move was our side
+		else
+		{
+			scores.push_back(getMoveScore(*bcpy, m, side));
+		}
+		
+		delete m;
 		delete bcpy;
 	}
 	if (scores.size() == 0)
@@ -193,13 +193,122 @@ Move *Player::minimaxMove(Board *b, int d, int current)
 	if (current % 2 == 0)
 	{
 		int scoreIndex = max(scores);
-		return moves[scoreIndex];
+		Move *m = moves[scoreIndex];
+		//don't need moves anymore
+		for (unsigned int i = 0; i < moves.size(); i++)
+		{
+			if ((int) i != scoreIndex)
+			{
+				delete moves[i];
+			}
+		}
+		return m;
 	}
 	//opponent's turn
 	else
 	{
 		int scoreIndex = min(scores);
-		return moves[scoreIndex];
+		Move *m = moves[scoreIndex];
+		//don't need moves anymore
+		for (unsigned int i = 0; i < moves.size(); i++)
+		{
+			if ((int) i != scoreIndex)
+			{
+				delete moves[i];
+			}
+		}
+		return m;
+	}
+}
+
+/**
+ * @brief Chooses a move using minimax alpha-beta pruning.
+ */
+Move *Player::alpha_beta(Board *b, int depth, int current, int alpha, int beta)
+{
+	if (current >= depth)
+	{
+		return nullptr;
+	}
+	if (current % 2 == 0)
+	{
+		int bestVal = numeric_limits<int>::min();
+		vector<Move*> moves = b->possibleMoves(side);
+		if (moves.size() == 0)
+		{
+			return nullptr;
+		}
+		int bestIndex = -1;
+		for (unsigned int i = 0; i < moves.size(); i++)
+		{
+			Board *bcpy = b->copy();
+			bcpy->doMove(moves[i], side);
+			Move *m = alpha_beta(bcpy, depth, current + 1, alpha, beta);
+			int value = getMoveScore(*bcpy, m, getOpponent());
+			if (value > bestVal)
+			{
+				bestVal = value;
+				bestIndex = i;
+			}
+			if (bestVal > alpha)
+			{
+				alpha = bestVal;
+			}
+			delete bcpy;
+			delete m;
+			if (beta <= alpha)
+			{
+				break;
+			}
+		}
+		for (unsigned int i = 0; i < moves.size(); i++)
+		{
+			if ((int) i != bestIndex)
+			{
+				delete moves[i];
+			}
+		}
+		return moves[bestIndex];
+	}
+	else
+	{
+		int bestVal = numeric_limits<int>::max();
+		vector<Move*> moves = b->possibleMoves(getOpponent());
+		if (moves.size() == 0)
+		{
+			return nullptr;
+		}
+		int bestIndex = -1;
+		for (unsigned int i = 0; i < moves.size(); i++)
+		{
+			Board *bcpy = b->copy();
+			bcpy->doMove(moves[i], side);
+			Move *m = alpha_beta(bcpy, depth, current + 1, alpha, beta);
+			int value = getMoveScore(*bcpy, m, side);
+			if (value < bestVal)
+			{
+				bestVal = value;
+				bestIndex = i;
+			}
+			if (bestVal < alpha)
+			{
+				alpha = bestVal;
+			}
+			delete bcpy;
+			delete m;
+			if (beta <= alpha)
+			{
+				break;
+			}
+		}
+		for (unsigned int i = 0; i < moves.size(); i++)
+		{
+			if ((int) i != bestIndex)
+			{
+				delete moves[i];
+			}
+		}
+		return moves[bestIndex];
 	}
 }
 
@@ -235,7 +344,7 @@ int Player::min(vector<int> scores)
 		{
 			minimum = i;
 		}
-		if (scores[i] > scores[minimum])
+		if (scores[i] < scores[minimum])
 		{
 			minimum = i;
 		}

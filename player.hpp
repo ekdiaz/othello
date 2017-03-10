@@ -5,6 +5,8 @@
 #include "common.hpp"
 #include "board.hpp"
 #include <vector>
+#include <limits>
+
 using namespace std;
 
 class Player {
@@ -16,8 +18,9 @@ public:
     void setBoard(Board *board);
     Move *doMove(Move *opponentsMove, int msLeft);
     Side getOpponent();
-    int getMoveScore(Board b, Move *m);
+    int getMoveScore(Board b, Move *m, Side s);
     Move *minimaxMove(Board *b, int d, int current);
+    Move *alpha_beta(Board *b, int depth, int current, int alpha, int beta);
     int max(vector<int> scores);
     int min(vector<int> scores);
 
@@ -26,6 +29,8 @@ public:
 private:
 	Board board;
 	Side side;
+	int a;
+	int b;
 };
 
 #endif
