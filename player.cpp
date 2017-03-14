@@ -11,9 +11,6 @@ Player::Player(Side side) {
     testingMinimax = false;
     this->side = side;
     this->board = Board();
-    // alpha and beta values for alpha-beta pruning
-    this->a = numeric_limits<int>::min();
-    this->b = numeric_limits<int>::max();
 }
 
 /*
@@ -76,7 +73,7 @@ int Player::getMoveScore(Board b, Move *m, Side s)
 	int score = score1 - beforeScore;
 
 	//if a move results in there being no further moves and we're winning, that move should be taken
-	if ((!bcopy->hasMoves(side)) && (!bcopy->hasMoves(getOpponent())))
+	if (bcopy->isDone())
 	{
 		if (score1 >= 0)
 		{
@@ -244,6 +241,12 @@ Move *Player::alpha_beta(Board *b, int depth, int current, int alpha, int beta)
 			Board *bcpy = b->copy();
 			bcpy->doMove(moves[i], side);
 			Move *m = alpha_beta(bcpy, depth, current + 1, alpha, beta);
+			//pass up the sentinel value (-1, -1) since time has run out
+			if ((m != nullptr) && (m->getX() == -1) && (m->getY() == -1))
+			{
+				delete bcpy;
+				return m;
+			}
 			int value = getMoveScore(*bcpy, m, getOpponent());
 			if (value > bestVal)
 			{
@@ -255,7 +258,7 @@ Move *Player::alpha_beta(Board *b, int depth, int current, int alpha, int beta)
 				alpha = bestVal;
 			}
 			delete bcpy;
-			delete m;
+
 			if (beta <= alpha)
 			{
 				break;
@@ -284,6 +287,12 @@ Move *Player::alpha_beta(Board *b, int depth, int current, int alpha, int beta)
 			Board *bcpy = b->copy();
 			bcpy->doMove(moves[i], side);
 			Move *m = alpha_beta(bcpy, depth, current + 1, alpha, beta);
+			//pass up the sentinel value (-1, -1) since time has run out
+			if ((m != nullptr) && (m->getX() == -1) && (m->getY() == -1))
+			{
+				delete bcpy;
+				return m;
+			}
 			int value = getMoveScore(*bcpy, m, side);
 			if (value < bestVal)
 			{
@@ -295,7 +304,7 @@ Move *Player::alpha_beta(Board *b, int depth, int current, int alpha, int beta)
 				alpha = bestVal;
 			}
 			delete bcpy;
-			delete m;
+
 			if (beta <= alpha)
 			{
 				break;

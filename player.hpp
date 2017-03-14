@@ -6,6 +6,7 @@
 #include "board.hpp"
 #include <vector>
 #include <limits>
+#include <ctime>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ public:
     int getMoveScore(Board b, Move *m, Side s);
     Move *minimaxMove(Board *b, int d, int current);
     Move *alpha_beta(Board *b, int depth, int current, int alpha, int beta);
+    Move *iterative_deepening(Board *bcopy);
     int max(vector<int> scores);
     int min(vector<int> scores);
 
@@ -29,8 +31,7 @@ public:
 private:
 	Board board;
 	Side side;
-	int a;
-	int b;
+	time_t start;
 };
 
 #endif
